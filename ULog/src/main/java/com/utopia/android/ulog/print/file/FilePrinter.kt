@@ -42,6 +42,8 @@ class FilePrinter constructor(): Printer{
     private var mFilter: Filter? = null
     // doc: 用于判断是否有存够多的存储空间
     private var isEnoughStorage = true
+    // doc: 用于判断是否处于上传状态
+    private var isUploadStatue = false
 
     /**
      * des: 用于从Builder类中通过build函数使用构造函数
@@ -64,11 +66,9 @@ class FilePrinter constructor(): Printer{
             // doc: 排除事件消息
             return
         }
-        val writer = getWriter()
-        if (message.type == UMessage.EVENT_FLUSH) {
-            writer.flush()
-            return
-        }
+        val writer = getWriter(message.config)
+        val intercepted = eventIntercept(writer, message)
+        if (intercepted) return
         val config = message.config ?: return
         val incrementer = getIncrementer()
         val lastFileName = writer.getOpenedFileName()
@@ -77,7 +77,7 @@ class FilePrinter constructor(): Printer{
             checkStorage(config)
             if (!isEnoughStorage) {
                 if (!isWriterClosed) {
-                    writer.append(ERROR_DES)
+                    writer.append(ERROR_DES, false)
                 }
                 return
             }
@@ -97,7 +97,32 @@ class FilePrinter constructor(): Printer{
             }
         }
         val result = getOutputFormatter().format(message)
-        writer.append(result)
+        writer.append(result, isUploadStatue)
+    }
+
+    /**
+     * des: 事件拦截处理
+     * time: 2022/3/3 19:08
+     */
+    private fun eventIntercept(writer: Writer, message: UMessage): Boolean {
+        return if (message.type == UMessage.EVENT_FLUSH) {
+            when (message.content) {
+                true -> {
+                    isUploadStatue = true
+                    Writer.isFlushing = true
+                    writer.flush()
+                    Writer.isFlushing = false
+                }
+                false -> {
+                    isUploadStatue = false
+                    writer.flushMemoryMap()
+                }
+                else -> writer.flush()
+            }
+            true
+        } else {
+            false
+        }
     }
 
     /**
@@ -140,9 +165,11 @@ class FilePrinter constructor(): Printer{
      * des: 获取文件写入器
      * time: 2021/11/19 9:14
      */
-    private fun getWriter(): Writer {
+    private fun getWriter(config: UConfig?): Writer {
         return if (mWriter == null) {
-            mWriter = DefaultFileWriter()
+            mWriter = DefaultFileWriter().apply {
+                cacheDir = config?.cacheLogDir
+            }
             mWriter!!
         } else {
             mWriter!!

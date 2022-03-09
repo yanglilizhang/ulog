@@ -29,7 +29,7 @@ allprojects {
 ```
 dependencies {
     ...
-    implementation 'com.github.wuliKingQin:ulog:1.0.0'
+    implementation 'com.github.wuliKingQin:ulog:1.0.1'
 }
 ```
 
@@ -50,7 +50,7 @@ ULog.init(this, config)
 ```
 val fileWriter = DefaultFileWriter(object : Writer.FileReady {
         override fun onReady(writer: Writer) {
-              writer.append("==================head content==================\n")
+              writer.writeToFileHead("==================head content==================\n")
         }
 })
 val filePrinter = FilePrinter.Builder()
@@ -144,3 +144,13 @@ val config = UConfig.Builder()
 ULog.startConfigUpdate("context上下文")
 ```
 5. 如果需要写入文件的日志进行加密, 可以自己实现Encryptor接口, 目前还没有实现默认的加密类.只是提供的接口.加密是对每一条日志进行的加密行为.
+
+
+#### 混淆配置：
+```
+-keep com.utopia.android.ulog.core.**{*;}
+-keep com.utopia.android.ulog.print.file.FilePrinter.**{*;}
+-keep com.utopia.android.ulog.print.logcat.AndroidPrinter.**{*;}
+-keep com.utopia.android.ulog.config.online.ConfigModel.**{*;}
+```
+
